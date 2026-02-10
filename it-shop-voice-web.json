@@ -1,0 +1,96 @@
+{
+  "name": "it-shop-voice-web",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "it-shop-voice",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "291775d7-581f-4014-a7aa-5f959906d5f1",
+      "name": "Webhook",
+      "webhookId": "62f00d78-a126-4597-aab7-87bfabeeb18b"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "=application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        416,
+        0
+      ],
+      "id": "17c92523-e4db-49db-8e63-4ef7d375f324",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const transcript = ($json.body?.transcript || \"\").toLowerCase();\nconst products = $json.body?.products || [];\n\n// คำหลักพื้นฐาน\nconst keywords = [\n  \"ssd\", \"hdd\", \"ram\",\n  \"เมาส์\", \"mouse\",\n  \"คีย์บอร์ด\", \"keyboard\",\n  \"จอ\", \"monitor\",\n  \"router\", \"เราเตอร์\"\n];\n\n// ฟังก์ชันให้คะแนนสินค้า\nfunction scoreProduct(p) {\n  let score = 0;\n  const name = (p.name || \"\").toLowerCase();\n  const category = (p.category || \"\").toLowerCase();\n\n  if (name.includes(transcript)) score += 5;\n\n  for (const k of keywords) {\n    if (transcript.includes(k) &&\n        (name.includes(k) || category.includes(k))) {\n      score += 3;\n    }\n  }\n\n  if ((p.stock ?? 0) > 0) score += 1;\n  return score;\n}\n\n// หาสินค้า\nconst matches = products\n  .map(p => ({ ...p, score: scoreProduct(p) }))\n  .filter(p => p.score > 0)\n  .sort((a, b) => b.score - a.score)\n  .slice(0, 3)\n  .map(({ score, ...p }) => p);\n\n// สร้างคำตอบภาษาไทย\nlet answer = \"\";\n\nif (!transcript) {\n  answer = \"ขอโทษครับ ผมไม่ได้ยินคำถาม ลองพูดใหม่อีกครั้งนะครับ\";\n} else if (matches.length === 0) {\n  answer = `ยังไม่พบสินค้าที่ตรงกับ \"${transcript}\" ลองระบุประเภท เช่น SSD, RAM หรือ เมาส์ ได้ไหมครับ`;\n} else {\n  answer =\n    `พบสินค้าที่ใกล้เคียง:\\n` +\n    matches.map(p =>\n      `- ${p.name} ราคา ${p.price} บาท (คงเหลือ ${p.stock})`\n    ).join(\"\\n\");\n}\n\nreturn [\n  {\n    json: {\n      transcript,\n      answer,\n      matches,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "67202a73-d330-4997-96bf-715d92af000e",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "214b7c1a-68cf-4354-9ae0-b18b301253b5",
+  "meta": {
+    "instanceId": "f0d89c64febd933e09417ecee02e7fa2c1a92fccf40bab069f65cf500829e252"
+  },
+  "id": "WKONgntopVEge0QBHOKXL",
+  "tags": []
+}
